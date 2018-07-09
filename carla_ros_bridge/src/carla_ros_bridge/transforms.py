@@ -1,8 +1,30 @@
 """
 Tool functions to convert transforms from carla to ros coordinate system
 """
-from geometry_msgs.msg import Transform, Pose
+import math
+
+from geometry_msgs.msg import Transform, Pose, Twist
 import tf
+
+from carla.sensor import Transform as carla_Transform
+
+def carla_measurements_to_ros_twist(carla_transform, carla_forward_speed):
+    """
+    Convert carla transform and forward_speed measurements to ros Odometry msg
+    :param carla_transform:
+           carla_forward_speed
+    :return: a ros Twist
+    """
+    # https://carla.readthedocs.io/en/latest/measurements/
+    # according to doc, forward_speed , is the linear speed projected to the
+    # forward vector of the chassis of the vehicle
+
+    ros_twist = Twist()
+    ros_twist.linear.x = carla_forward_speed * math.cos(carla_transform.rotation.yaw)
+    ros_twist.linear.y = - carla_forward_speed * math.sin(carla_transform.rotation.yaw)
+    ros_twist.linear.z = 0
+
+    return ros_twist
 
 
 def carla_transform_to_ros_transform(carla_transform):
@@ -42,22 +64,28 @@ def carla_transform_to_ros_pose(carla_transform):
     :param carla_transform:
     :return: a ros pose msg
     """
-    transform_matrix = Transform(carla_transform).matrix
+    transform_matrix = carla_Transform(carla_transform).matrix
 
     x, y, z = tf.transformations.translation_from_matrix(transform_matrix)
     quat = tf.transformations.quaternion_from_matrix(transform_matrix)
 
-    ros_transform = Transform()
-    ros_transform.translation.x = x
-    ros_transform.translation.y = y
-    ros_transform.translation.z = z
+    ros_pose = Pose()
+    ros_pose.position.x = x
+    ros_pose.position.y = -y
+    ros_pose.position.z = z
 
-    ros_transform.rotation.x = quat[0]
-    ros_transform.rotation.y = quat[1]
-    ros_transform.rotation.z = quat[2]
-    ros_transform.rotation.w = quat[3]
+    roll, pitch, yaw = tf.transformations.euler_from_quaternion(quat)
+    roll = -roll
+    pitch = pitch
+    yaw = -yaw
 
-    return ros_transform
+    quat = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+    ros_pose.orientation.x = quat[0]
+    ros_pose.orientation.y = quat[1]
+    ros_pose.orientation.z = quat[2]
+    ros_pose.orientation.w = quat[3]
+
+    return ros_pose
 
 
 def ros_transform_to_pose(ros_transform):

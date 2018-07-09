@@ -13,7 +13,7 @@ from carla.settings import CarlaSettings
 from carla_ros_bridge.control import InputController
 from carla_ros_bridge.markers import PlayerAgentHandler, NonPlayerAgentsHandler
 from carla_ros_bridge.sensors import CameraHandler, LidarHandler
-
+from carla_ros_bridge.odometry import PlayerOdometryHandler, NonPlayerOdometryHandler
 
 class CarlaRosBridge(object):
     """
@@ -43,6 +43,12 @@ class CarlaRosBridge(object):
             "player_vehicle", process_msg_fun=self.process_msg)
         self.non_players_handler = NonPlayerAgentsHandler(
             "vehicles", process_msg_fun=self.process_msg)
+
+        # creat handlers to handle vehicle messages and publish odometry information
+        self.player_odo_handler = PlayerOdometryHandler(
+            "player_odometry", process_msg_fun=self.process_msg)
+        self.nonplayer_odo_handler = NonPlayerOdometryHandler(
+            "vehicles_odo", process_msg_fun=self.process_msg)
 
         # creating handler for sensors
         self.sensors = {}
@@ -149,6 +155,12 @@ class CarlaRosBridge(object):
             self.player_handler.process_msg(
                 measurements.player_measurements, cur_time=self.cur_time)
             self.non_players_handler.process_msg(
+                measurements.non_player_agents, cur_time=self.cur_time)
+
+            # handle agent odometries
+            self.player_odo_handler.process_msg(
+                measurements.player_measurements, cur_time=self.cur_time)
+            self.nonplayer_odo_handler.process_msg(
                 measurements.non_player_agents, cur_time=self.cur_time)
 
             # handle sensors
